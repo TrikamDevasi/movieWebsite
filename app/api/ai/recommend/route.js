@@ -1,13 +1,20 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(request) {
+  // Guard: fail gracefully if API key not configured
+  if (!process.env.OPENAI_API_KEY) {
+    return Response.json({
+      recommendations: [],
+      error: "AI service not configured"
+    }, { status: 503 });
+  }
+
+  // Initialise client inside the handler — never at module/build time
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
   try {
     const { mood } = await request.json();
-    
+
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [{
@@ -24,13 +31,13 @@ export async function POST(request) {
     });
 
     const movies = JSON.parse(completion.choices[0].message.content);
-    
-    return Response.json({ 
-      recommendations: Array.isArray(movies) ? movies : [] 
+
+    return Response.json({
+      recommendations: Array.isArray(movies) ? movies : []
     });
   } catch (error) {
     console.error("OpenAI API Error:", error);
-    return Response.json({ 
+    return Response.json({
       recommendations: [],
       error: "AI service temporarily unavailable"
     }, { status: 500 });
